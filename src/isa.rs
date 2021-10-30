@@ -1,12 +1,13 @@
 use crate::reexports::*;
 
-use std::{borrow::Cow, rc::Rc};
+use std::{rc::Rc};
 
 #[derive(Debug)]
 pub enum Instruction {
-    Push(Variant),
-    Save(Var),
-    Load(Var),
+    Push(ISAVariant),
+    RefLocal(Local),
+    Write,
+    Read,
 
     Call,
     Ret,
@@ -16,12 +17,12 @@ pub enum Instruction {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Var(pub(crate) Cow<'static, str>);
+pub struct Local(pub usize);
 
 #[derive(Clone, Debug)]
-pub enum Variant {
+pub enum ISAVariant {
     VInt(i64),
     VFloat(f64),
-    VAddress(Rc<Procedure>)  // TODO: Literally any other representation holy shit
+    VProc(Rc<Procedure>)  // TODO: Literally any other representation holy shit
     // VString(String),
 }
