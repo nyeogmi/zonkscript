@@ -9,6 +9,7 @@
 // - Separate typechecking pass
 // - Instruction to ref an individual field
 // - Instructions to make assertions about the stack.
+// - Primitives on the stack should have an "allocated?" flag
 // - Stack values should be ref-like.
 //   Effectively: things in the stack (as opposed to variable slots) are &Xs, variable slots are non-fixed-size. Whoa!! 
 //   This might be cool or might be terrible. It is very JavaScript Engine!
