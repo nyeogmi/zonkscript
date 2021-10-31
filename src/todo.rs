@@ -7,8 +7,6 @@
 // - Variant should be Copy.
 // - Arguments for Call instruction.
 // - Return values for Ret instruction.
-// - Procedure ids for Instruction set (instead of just using Rc<Procedure> everywhere)
-// - Type ids for Instruction set
 // - Separate typechecking pass
 // - Instruction to ref an individual field
 // - Instructions to make assertions about the stack.

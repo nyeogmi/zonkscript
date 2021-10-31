@@ -4,11 +4,13 @@ mod procedure;
 mod shared;
 mod structure;
 mod std_primitives;
+mod tables;
 
 pub use self::primitive::{Primitive};
 pub use self::procedure::{Procedure, ProcedureBuilder};
 pub use self::shared::{Identifier, Module, ModuleBuilder};
 pub use self::structure::{Struct, StructBuilder};
 pub use self::std_primitives::{StdPrimitives};
+pub use self::tables::{Finalized, Named, Prototyped};
 
 pub(self) use self::shared::*;

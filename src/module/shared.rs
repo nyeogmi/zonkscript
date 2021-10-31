@@ -20,29 +20,7 @@ pub struct Module {
     pub std_primitives: StdPrimitives,
 }
 
-#[derive(Clone)]
-pub struct Prototyped<T, Builder> {
-    pub(super) names: BTreeMap<Identifier, Id<T>>,
-    pub(super) rev_names: BTreeMap<Id<T>, Identifier>,
-    pub(super) in_progress: BTreeMap<Id<T>, Builder>,
-    pub(super) sealed: BTreeSet<Id<T>>,
-    pub(super) finalized: BTreeSet<Id<T>>,
-    pub(super) data: RawPom<T>,
-}
-
-#[derive(Clone)]
-pub struct Named<T> {
-    pub(super) names: BTreeMap<Identifier, Id<T>>,
-    pub(super) data: RawPom<T>,
-}
-
 pub type Identifier = Cow<'static, str>;
-
-#[derive(Debug)]
-pub struct Finalized<T> {
-    pub(super) names: BTreeMap<Identifier, Id<T>>,
-    pub(super) data: RawPom<T>,
-}
 
 impl Module {
     pub(crate) fn resolve_procedure(&self, procedure: Id<Procedure>) -> &Procedure {
@@ -138,68 +116,5 @@ impl ModuleBuilder {
         let struct_id = self.structs.reference(identifier, |name| Struct::wrap(name.clone(), prim_id, prim));
         self.structs.finalize(struct_id);
         struct_id
-    }
-}
-
-impl<T, Builder> Prototyped<T, Builder> {
-    pub fn new() -> Prototyped<T, Builder> {
-        Prototyped {
-            names: BTreeMap::new(),
-            rev_names: BTreeMap::new(),
-            in_progress: BTreeMap::new(),
-            sealed: BTreeSet::new(),
-            finalized: BTreeSet::new(),
-            data: RawPom::new(),
-        }
-    }
-
-    pub fn reference(&mut self, identifier: &Identifier, default: impl Fn(&Identifier) -> T) -> Id<T> {
-        if let Some(id) = self.names.get(identifier) {
-            return *id;
-        }
-        let id = self.data.insert(default(identifier));
-        self.names.insert(identifier.clone(), id);
-        self.rev_names.insert(id, identifier.clone());
-        id
-    }
-
-    pub fn mutate(&mut self, id: Id<T>, default_builder: impl Fn(&Identifier) -> Builder) -> Option<&mut Builder> {
-        if self.sealed.contains(&id) { return None; }
-
-        match self.in_progress.entry(id) {
-            Entry::Vacant(v) => {
-                let name = self.rev_names.get(&id).unwrap();
-                v.insert(default_builder(name));
-            }
-            Entry::Occupied(_) => { }
-        };
-        return self.in_progress.get_mut(&id)
-    }
-
-    pub fn seal(&mut self, id: Id<T>) {
-        self.sealed.insert(id);
-    }
-
-    pub fn finalize(&mut self, id: Id<T>) {
-        self.sealed.insert(id);
-        self.finalized.insert(id);
-    }
-}
-
-impl<T> Named<T> {
-    pub fn new() -> Named<T> {
-        Named {
-            names: BTreeMap::new(),
-            data: RawPom::new(),
-        }
-    }
-
-    pub fn get_or_insert(&mut self, identifier: &Identifier, factory: impl Fn() -> T) -> Id<T> {
-        if let Some(id) = self.names.get(identifier) {
-            return *id;
-        }
-        let id = self.data.insert(factory());
-        self.names.insert(identifier.clone(), id);
-        id
     }
 }
