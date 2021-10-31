@@ -3,15 +3,20 @@ use std::{mem, rc::Rc};
 use crate::reexports::*;
 
 pub struct Thread {
-    heap_stack: HeapStack,
+    globals: Globals,
     stack: Vec<StackFrame>,
+}
+
+struct Globals {
+    module: Rc<Module>,
+    heap_stack: HeapStack,
 }
 
 struct StackFrame {
     // TODO: Variables shouldn't be memcpyed
     // We should just keep a stack pointer and a stack layout pointer
     stack: Vec<StackVariant>,
-    code: Rc<Procedure>,
+    code: Id<Procedure>,
 
     sp: HeapStackRef,
     ip: usize,
@@ -19,25 +24,25 @@ struct StackFrame {
 
 #[derive(Clone, Debug)]
 enum StackVariant {
-    VRef(Rc<RuntimeStruct>, HeapStackRef),  // NOTE: This is GONZO INEFFICIENT
+    VRef(Id<Struct>, HeapStackRef),  // NOTE: This is GONZO INEFFICIENT
     VInt(i64), VFloat(f64),
-    VProc(Rc<Procedure>),
+    VProc(Id<Procedure>),
 }
 
 impl Thread {
-    pub(crate) fn spawn(entry_point: Rc<Procedure>) -> Thread {
+    pub(crate) fn spawn(module: Rc<Module>, entry_point: Id<Procedure>) -> Thread {
         // TODO: Check type of entry point and make sure it can run with no args
         let mut thr = Thread {
-            heap_stack: HeapStack::new(),
+            globals: Globals { module, heap_stack: HeapStack::new() },
             stack: vec![], 
         };
-        thr.stack.push(StackFrame::new_on(&mut thr.heap_stack, entry_point));
+        thr.stack.push(StackFrame::new_on(&mut thr.globals, entry_point));
         thr
     }
 
     pub(crate) fn step(&mut self) -> bool {
         if let Some(active) = self.stack.pop() {
-            match active.step(&mut self.heap_stack) {
+            match active.step(&mut self.globals) {
                 // TODO: Return value
                 StackFrameSuccessor::Return => {}
                 StackFrameSuccessor::Continue(x) => { 
@@ -62,8 +67,10 @@ enum StackFrameSuccessor {
 }
 
 impl StackFrame {
-    fn new_on(hs: &mut HeapStack, code: Rc<Procedure>) -> StackFrame {
-        let sp = hs.stack_alloc(&code.frame);
+    fn new_on(globals: &mut Globals, code: Id<Procedure>) -> StackFrame {
+        let proc = globals.module.resolve_procedure(code);
+        let sp = globals.heap_stack.stack_alloc((*globals.module).resolve_struct(proc.frame));
+
         StackFrame {
             stack: Vec::new(),
             code,
@@ -73,8 +80,11 @@ impl StackFrame {
         }
     }
 
-    fn step(mut self, hs: &mut HeapStack) -> StackFrameSuccessor {
-        let instructions = &self.code.instructions;
+    fn step(mut self, globals: &mut Globals) -> StackFrameSuccessor {
+        let code = globals.module.resolve_procedure(self.code);
+        let frame = globals.module.resolve_struct(code.frame);
+
+        let instructions = &code.instructions;
         assert!((0..instructions.len()).contains(&self.ip));
         let old_ip = self.ip;
         self.ip += 1;
@@ -89,9 +99,11 @@ impl StackFrame {
                 self.stack.push(v2);
             }
             Instruction::RefLocal(x) => {
-                let field_type = &self.code.frame.fields[x.0].1;
+                // NYEO NOTE: This -1 is to compensate for the 1-indexing in moogle
+                // ... Objectively, it is terrible. Don't use moogle for this, probably!
+                let field_type = frame.fields[x.get_value() as usize - 1].1;
                 let field = unsafe {
-                    hs.stack_access_field(self.sp, &self.code.frame, x.0)
+                    globals.heap_stack.stack_access_field(self.sp, frame, x.get_value() as usize - 1)
                 };
                 
                 self.stack.push(StackVariant::VRef(field_type.clone(), field));
@@ -109,14 +121,14 @@ impl StackFrame {
                 match (stack_top, ty) {
                     (StackVariant::VFloat(vf), ty) => {
                         unsafe {
-                            let ptr: *mut u8 = hs.stack_access_primitive(reference, &ty);
+                            let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, globals.module.resolve_struct(ty));
                             let float: *mut f64 = mem::transmute(ptr);
                             *float = vf;
                         }
                     }
                     (StackVariant::VInt(vi), ty) => {
                         unsafe {
-                            let ptr: *mut u8 = hs.stack_access_primitive(reference, &ty);
+                            let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, globals.module.resolve_struct(ty));
                             let float: *mut i64 = mem::transmute(ptr);
                             *float = vi;
                         }
@@ -135,30 +147,24 @@ impl StackFrame {
                 } else {
                     panic!("can't read a non-reference");
                 };
+                let structure = globals.module.resolve_struct(ty);
 
-                // TODO: Consider type of `ty`
-                if ty.fields.len() != 0 {
-                    panic!("can't read a non-primitive (got: {:?})", ty);
-                }
-
-                let field = ty.single_fields[0];
-
-                let variant = if field.type_data == RuntimeType::VINT {
+                let variant = if ty == globals.module.std_primitives.v_int {
                     unsafe {
-                        let ptr: *mut u8 = hs.stack_access_primitive(reference, &ty);
+                        let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, structure);
                         let int: *mut i64 = mem::transmute(ptr);
                         StackVariant::VInt(*int)
                     }
                 } 
-                else if field.type_data == RuntimeType::VFLOAT {
+                else if ty == globals.module.std_primitives.v_float {
                     unsafe {
-                        let ptr: *mut u8 = hs.stack_access_primitive(reference, &ty);
+                        let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, structure);
                         let float: *mut f64 = mem::transmute(ptr);
                         StackVariant::VFloat(*float)
                     }
                 }
                 else {
-                    panic!("can't read primitive of type: {:?}", field)
+                    panic!("can't read primitive of type: {:?}", ty)
                 };
 
                 self.stack.push(variant)
@@ -170,7 +176,7 @@ impl StackFrame {
             Instruction::Call => {
                 let v = self.stack.pop().unwrap();
                 match v {
-                    StackVariant::VProc(addr) => { return StackFrameSuccessor::Descend(self, StackFrame::new_on(hs, addr)) }
+                    StackVariant::VProc(addr) => { return StackFrameSuccessor::Descend(self, StackFrame::new_on(globals, addr)) }
                     v => { 
                         panic!("cannot call: {:?}", v)
                     }

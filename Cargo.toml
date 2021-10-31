@@ -7,3 +7,5 @@ edition = "2018"
 
 [dependencies]
 bumpalo = "3.8.0"
+# moogle = "0.4.4"
+moogle = { path = "../moogle" }

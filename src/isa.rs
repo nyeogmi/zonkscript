@@ -2,10 +2,10 @@ use crate::reexports::*;
 
 use std::{rc::Rc};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Instruction {
     Push(ISAVariant),
-    RefLocal(Local),
+    RefLocal(Id<Local>),
     Write,
     Read,
 
@@ -17,12 +17,12 @@ pub enum Instruction {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Local(pub usize);
+pub struct Local(pub Id<Struct>);  // field ix
 
 #[derive(Clone, Debug)]
 pub enum ISAVariant {
     VInt(i64),
     VFloat(f64),
-    VProc(Rc<Procedure>)  // TODO: Literally any other representation holy shit
+    VProc(Id<Procedure>)  
     // VString(String),
 }
