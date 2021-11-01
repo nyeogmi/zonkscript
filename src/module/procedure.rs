@@ -8,7 +8,7 @@ use super::*;
 pub struct Procedure {
     pub name: Cow<'static, str>,
     pub(crate) instructions: Vec<Instruction>,
-    pub(crate) frame: Id<Struct>,
+    pub(crate) frame: ZId<Struct>,
 }
 
 #[derive(Clone)]
@@ -16,12 +16,7 @@ pub struct ProcedureBuilder {
     pub name: Cow<'static, str>,
     pub(crate) instructions: Vec<Instruction>,
     pub(crate) locals: Named<Local>,
-}
-
-impl Procedure {
-    pub(crate) fn placeholder(name: &Identifier) -> Procedure {
-        Procedure { name: name.clone(), instructions: vec![], frame: Id::id_min_value(), }
-    }
+    pub frame_hint: Option<ZId<Struct>>,
 }
 
 impl ProcedureBuilder {
@@ -30,14 +25,7 @@ impl ProcedureBuilder {
             name: name.clone(),
             instructions: vec![],
             locals: Named::new(),
-        }
-    }
-    
-    pub(super) fn build(self, frame: Id<Struct>) -> Procedure {
-        Procedure {
-            name: self.name,
-            instructions: self.instructions,
-            frame,
+            frame_hint: None,
         }
     }
 
@@ -45,7 +33,18 @@ impl ProcedureBuilder {
         self.instructions.push(instruction)
     }
 
-    pub(crate) fn push_local(&mut self, name: &Identifier, ty: Id<Struct>) -> Id<Local> {
+    pub(crate) fn push_local(&mut self, name: &Identifier, ty: ZId<Struct>) -> ZId<Local> {
         self.locals.get_or_insert(name, || Local(ty))
+    }
+}
+
+impl Builds<Procedure> for ProcedureBuilder {
+    fn build<'a>(self, _resolve: &mut impl FnMut(ZId<Procedure>, &mut dyn FnMut(&Procedure))) -> Procedure {
+        // TODO: Don't panic here
+        Procedure {
+            name: self.name,
+            instructions: self.instructions,
+            frame: self.frame_hint.unwrap(),
+        }
     }
 }

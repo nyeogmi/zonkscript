@@ -7,5 +7,3 @@ pub use super::module::{
     Struct, StructBuilder,
 };
 pub use super::vm::Thread;
-
-pub(crate) use moogle::*;

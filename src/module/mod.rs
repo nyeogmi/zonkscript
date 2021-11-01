@@ -11,6 +11,4 @@ pub use self::procedure::{Procedure, ProcedureBuilder};
 pub use self::shared::{Identifier, Module, ModuleBuilder};
 pub use self::structure::{Struct, StructBuilder};
 pub use self::std_primitives::{StdPrimitives};
-pub use self::tables::{Finalized, Named, Prototyped};
-
-pub(self) use self::shared::*;
+pub use self::tables::{Builds, Finalized, Named, Phased, Prototyped, ZId};

@@ -1,6 +1,4 @@
-use std::{alloc::Layout, any::TypeId, borrow::Cow};
-
-use super::*;
+use std::{alloc::Layout, any::TypeId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Primitive {    

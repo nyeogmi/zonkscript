@@ -1,7 +1,5 @@
 use std::borrow::Cow;
 
-use moogle::Id;
-
 use super::*;
 
 impl ModuleBuilder {
@@ -20,6 +18,6 @@ impl ModuleBuilder {
 
 #[derive(Debug)]
 pub struct StdPrimitives {
-    pub v_int: Id<Struct>,
-    pub v_float: Id<Struct>,
+    pub v_int: ZId<Struct>,
+    pub v_float: ZId<Struct>,
 }

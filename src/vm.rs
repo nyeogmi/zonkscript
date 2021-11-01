@@ -1,6 +1,6 @@
 use std::{mem, rc::Rc};
 
-use crate::reexports::*;
+use crate::{module::ZId, reexports::*};
 
 pub struct Thread {
     globals: Globals,
@@ -16,7 +16,7 @@ struct StackFrame {
     // TODO: Variables shouldn't be memcpyed
     // We should just keep a stack pointer and a stack layout pointer
     stack: Vec<StackVariant>,
-    code: Id<Procedure>,
+    code: ZId<Procedure>,
 
     sp: HeapStackRef,
     ip: usize,
@@ -24,13 +24,13 @@ struct StackFrame {
 
 #[derive(Clone, Debug)]
 enum StackVariant {
-    VRef(Id<Struct>, HeapStackRef),  // NOTE: This is GONZO INEFFICIENT
+    VRef(ZId<Struct>, HeapStackRef),  // NOTE: This is GONZO INEFFICIENT
     VInt(i64), VFloat(f64),
-    VProc(Id<Procedure>),
+    VProc(ZId<Procedure>),
 }
 
 impl Thread {
-    pub(crate) fn spawn(module: Rc<Module>, entry_point: Id<Procedure>) -> Thread {
+    pub(crate) fn spawn(module: Rc<Module>, entry_point: ZId<Procedure>) -> Thread {
         // TODO: Check type of entry point and make sure it can run with no args
         let mut thr = Thread {
             globals: Globals { module, heap_stack: HeapStack::new() },
@@ -67,7 +67,7 @@ enum StackFrameSuccessor {
 }
 
 impl StackFrame {
-    fn new_on(globals: &mut Globals, code: Id<Procedure>) -> StackFrame {
+    fn new_on(globals: &mut Globals, code: ZId<Procedure>) -> StackFrame {
         let proc = globals.module.resolve_procedure(code);
         let sp = globals.heap_stack.stack_alloc((*globals.module).resolve_struct(proc.frame));
 
@@ -101,9 +101,9 @@ impl StackFrame {
             Instruction::RefLocal(x) => {
                 // NYEO NOTE: This -1 is to compensate for the 1-indexing in moogle
                 // ... Objectively, it is terrible. Don't use moogle for this, probably!
-                let field_type = frame.fields[x.get_value() as usize - 1].1;
+                let field_type = frame.fields[x.0].1;
                 let field = unsafe {
-                    globals.heap_stack.stack_access_field(self.sp, frame, x.get_value() as usize - 1)
+                    globals.heap_stack.stack_access_field(self.sp, frame, x.0)
                 };
                 
                 self.stack.push(StackVariant::VRef(field_type.clone(), field));

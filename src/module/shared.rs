@@ -1,6 +1,4 @@
-use std::{borrow::Cow, collections::{BTreeMap, BTreeSet, btree_map::Entry}};
-
-use moogle::{Id, RawPom};
+use std::borrow::Cow;
 
 use crate::reexports::*;
 
@@ -23,12 +21,13 @@ pub struct Module {
 pub type Identifier = Cow<'static, str>;
 
 impl Module {
-    pub(crate) fn resolve_procedure(&self, procedure: Id<Procedure>) -> &Procedure {
-        self.procedures.data.get(procedure).unwrap()
+    // TODO: Don't panic here
+    pub(crate) fn resolve_procedure(&self, procedure: ZId<Procedure>) -> &Procedure {
+        &self.procedures.data[procedure.0]
     }
 
-    pub(crate) fn resolve_struct(&self, struct_: Id<Struct>) -> &Struct {
-        self.structs.data.get(struct_).unwrap()
+    pub(crate) fn resolve_struct(&self, struct_: ZId<Struct>) -> &Struct {
+        &self.structs.data[struct_.0]
     }
 }
 
@@ -45,20 +44,20 @@ impl ModuleBuilder {
     }
 
     // == procedures ==
-    pub fn procedure(&mut self, identifier: &Identifier) -> Id<Procedure> {
-        self.procedures.reference(identifier, Procedure::placeholder)
+    pub fn procedure(&mut self, identifier: &Identifier) -> ZId<Procedure> {
+        self.procedures.reference(identifier)
     }
 
-    fn mut_procedure(&mut self, id: Id<Procedure>) -> Option<&mut ProcedureBuilder> {
+    fn mut_procedure(&mut self, id: ZId<Procedure>) -> Option<&mut ProcedureBuilder> {
         self.procedures.mutate(id, ProcedureBuilder::new)
     }
 
-    pub fn seal_procedure(&mut self, id: Id<Procedure>) {
+    pub fn seal_procedure(&mut self, id: ZId<Procedure>) {
         // TODO: Panic on double-finalize? Probably just ignore.
         self.procedures.seal(id);
     }
 
-    pub fn local(&mut self, id: Id<Procedure>, name: &Identifier, ty: Id<Struct>) -> Id<Local> {
+    pub fn local(&mut self, id: ZId<Procedure>, name: &Identifier, ty: ZId<Struct>) -> ZId<Local> {
         if let Some(mp) = self.mut_procedure(id) {
             mp.push_local(name, ty)
         } else {
@@ -66,7 +65,7 @@ impl ModuleBuilder {
         }
     }
 
-    pub fn push_instruction(&mut self, id: Id<Procedure>, instruction: Instruction) {
+    pub fn push_instruction(&mut self, id: ZId<Procedure>, instruction: Instruction) {
         if let Some(mp) = self.mut_procedure(id) {
             mp.push_instruction(instruction)
         } else {
@@ -75,20 +74,20 @@ impl ModuleBuilder {
     }
 
     // == structures ==
-    pub fn structure(&mut self, identifier: &Identifier) -> Id<Struct> {
-        self.structs.reference(identifier, Struct::placeholder)
+    pub fn structure(&mut self, identifier: &Identifier) -> ZId<Struct> {
+        self.structs.reference(identifier)
     }
 
-    fn mut_struct(&mut self, id: Id<Struct>) -> Option<&mut StructBuilder> {
+    fn mut_struct(&mut self, id: ZId<Struct>) -> Option<&mut StructBuilder> {
         self.structs.mutate(id, StructBuilder::new)
     }
 
-    pub fn seal_structure(&mut self, id: Id<Struct>) {
+    pub fn seal_structure(&mut self, id: ZId<Struct>) {
         // TODO: Panic on double-finalize? Probably just ignore.
         self.structs.seal(id);
     }
 
-    pub fn push_field(&mut self, id: Id<Struct>, field: Id<Struct>) {
+    pub fn push_field(&mut self, id: ZId<Struct>, field: ZId<Struct>) {
         if let Some(ms) = self.mut_struct(id) {
             ms.push(field)
         } else {
@@ -97,24 +96,20 @@ impl ModuleBuilder {
     }
 
     // == primitives ==
-    pub fn primitive(&mut self, identifier: &Identifier, primitive: impl Fn() -> Primitive) -> Id<Struct> {
+    pub fn primitive(&mut self, identifier: &Identifier, primitive: impl Fn() -> Primitive) -> ZId<Struct> {
         // NYEO NOTE: This function breaks encapsulation in a few ways and should be changed somehow
         // more args?
-        if let Some(id) = self.structs.names.get(identifier) { 
-            if self.structs.in_progress.contains_key(id) {
-                panic!("trying to create primitive for _partway_-populated struct. bad!")
-            } else if self.structs.finalized.contains(id) {
-                // no need to do more work, this was already generated
-                // TODO: Assert that the struct _is_ a primitive for this primitive type?
-                return *id;
-            }
-        } 
+        let id = self.structs.reference(identifier);
+        if self.structs.is_populated(id) {
+            // TODO: Assert that the struct _is_ a primitive for this primitive type?
+            return id;
+        }
 
         assert!(!self.primitives.names.contains_key(identifier));
         let prim = primitive();
         let prim_id = self.primitives.get_or_insert(identifier, || prim);
-        let struct_id = self.structs.reference(identifier, |name| Struct::wrap(name.clone(), prim_id, prim));
-        self.structs.finalize(struct_id);
+        let struct_id = self.structs.reference(identifier);
+        self.structs.inject(struct_id, Struct::wrap(identifier.clone(), prim_id, prim), |x, y| x == y);
         struct_id
     }
 }

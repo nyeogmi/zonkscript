@@ -1,11 +1,10 @@
-use crate::reexports::*;
-
-use std::{rc::Rc};
+use crate::{module::ZId, reexports::*};
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub enum Instruction {
     Push(ISAVariant),
-    RefLocal(Id<Local>),
+    RefLocal(ZId<Local>),
     Write,
     Read,
 
@@ -17,12 +16,12 @@ pub enum Instruction {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Local(pub Id<Struct>);  // field ix
+pub struct Local(pub ZId<Struct>);  // field ix
 
 #[derive(Clone, Debug)]
 pub enum ISAVariant {
     VInt(i64),
     VFloat(f64),
-    VProc(Id<Procedure>)  
+    VProc(ZId<Procedure>)  
     // VString(String),
 }

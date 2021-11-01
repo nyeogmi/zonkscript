@@ -1,10 +1,11 @@
-use crate::reexports::*;
 use crate::module::*;
 
 use std::collections::BTreeMap;
 
+use super::ZId;
+
 #[derive(Debug)]
 pub struct Finalized<T> {
-    pub(in crate::module) names: BTreeMap<Identifier, Id<T>>,
-    pub(in crate::module) data: RawPom<T>,
+    pub(in crate::module) names: BTreeMap<Identifier, ZId<T>>,
+    pub(in crate::module) data: Vec<T>,
 }
