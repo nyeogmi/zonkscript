@@ -4,6 +4,6 @@ pub use super::module::{
     Module, ModuleBuilder,
     Primitive, 
     Procedure, ProcedureBuilder,
-    Struct, StructBuilder,
+    DataType, DataTypeBuilder,
 };
 pub use super::vm::Thread;

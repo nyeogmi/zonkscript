@@ -15,7 +15,7 @@ fn main() {
     let mut module = ModuleBuilder::new();
     let main = module.procedure(&Cow::Borrowed("main"));
 
-    let loc_type = module.structure(&Cow::Borrowed("i64"));
+    let loc_type = module.datatype(&Cow::Borrowed("i64"));
     let loc0 = module.local(main, &Cow::Borrowed("a"), loc_type);
 
     for inst in [

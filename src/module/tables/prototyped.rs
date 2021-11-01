@@ -52,7 +52,7 @@ impl<T, Builder: Builds<T>> Prototyped<T, Builder> {
         &mut self.data[id.0]
     }
 
-    pub(crate) fn is_populated(&self, id: ZId<Struct>) -> bool {
+    pub(crate) fn is_populated(&self, id: ZId<DataType>) -> bool {
         match &self.data[id.0] {
             Phased::Mentioned => false,
             Phased::InProgress(_) => true,

@@ -18,6 +18,6 @@ impl ModuleBuilder {
 
 #[derive(Debug)]
 pub struct StdPrimitives {
-    pub v_int: ZId<Struct>,
-    pub v_float: ZId<Struct>,
+    pub v_int: ZId<DataType>,
+    pub v_float: ZId<DataType>,
 }

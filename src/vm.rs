@@ -24,7 +24,7 @@ struct StackFrame {
 
 #[derive(Clone, Debug)]
 enum StackVariant {
-    VRef(ZId<Struct>, HeapStackRef),  // NOTE: This is GONZO INEFFICIENT
+    VRef(ZId<DataType>, HeapStackRef),  // NOTE: This is GONZO INEFFICIENT
     VInt(i64), VFloat(f64),
     VProc(ZId<Procedure>),
 }
@@ -68,8 +68,8 @@ enum StackFrameSuccessor {
 
 impl StackFrame {
     fn new_on(globals: &mut Globals, code: ZId<Procedure>) -> StackFrame {
-        let proc = globals.module.resolve_procedure(code);
-        let sp = globals.heap_stack.stack_alloc((*globals.module).resolve_struct(proc.frame));
+        let proc = globals.module.procedure(code);
+        let sp = globals.heap_stack.stack_alloc((*globals.module).datatype(proc.frame));
 
         StackFrame {
             stack: Vec::new(),
@@ -81,8 +81,8 @@ impl StackFrame {
     }
 
     fn step(mut self, globals: &mut Globals) -> StackFrameSuccessor {
-        let code = globals.module.resolve_procedure(self.code);
-        let frame = globals.module.resolve_struct(code.frame);
+        let code = globals.module.procedure(self.code);
+        let frame = globals.module.datatype(code.frame);
 
         let instructions = &code.instructions;
         assert!((0..instructions.len()).contains(&self.ip));
@@ -121,14 +121,14 @@ impl StackFrame {
                 match (stack_top, ty) {
                     (StackVariant::VFloat(vf), ty) => {
                         unsafe {
-                            let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, globals.module.resolve_struct(ty));
+                            let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, globals.module.datatype(ty));
                             let float: *mut f64 = mem::transmute(ptr);
                             *float = vf;
                         }
                     }
                     (StackVariant::VInt(vi), ty) => {
                         unsafe {
-                            let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, globals.module.resolve_struct(ty));
+                            let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, globals.module.datatype(ty));
                             let float: *mut i64 = mem::transmute(ptr);
                             *float = vi;
                         }
@@ -147,18 +147,18 @@ impl StackFrame {
                 } else {
                     panic!("can't read a non-reference");
                 };
-                let structure = globals.module.resolve_struct(ty);
+                let datatype = globals.module.datatype(ty);
 
                 let variant = if ty == globals.module.std_primitives.v_int {
                     unsafe {
-                        let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, structure);
+                        let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, datatype);
                         let int: *mut i64 = mem::transmute(ptr);
                         StackVariant::VInt(*int)
                     }
                 } 
                 else if ty == globals.module.std_primitives.v_float {
                     unsafe {
-                        let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, structure);
+                        let ptr: *mut u8 = globals.heap_stack.stack_access_primitive(reference, datatype);
                         let float: *mut f64 = mem::transmute(ptr);
                         StackVariant::VFloat(*float)
                     }

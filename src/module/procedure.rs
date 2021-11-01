@@ -8,7 +8,7 @@ use super::*;
 pub struct Procedure {
     pub name: Cow<'static, str>,
     pub(crate) instructions: Vec<Instruction>,
-    pub(crate) frame: ZId<Struct>,
+    pub(crate) frame: ZId<DataType>,
 }
 
 #[derive(Clone)]
@@ -16,7 +16,7 @@ pub struct ProcedureBuilder {
     pub name: Cow<'static, str>,
     pub(crate) instructions: Vec<Instruction>,
     pub(crate) locals: Named<Local>,
-    pub frame_hint: Option<ZId<Struct>>,
+    pub frame_hint: Option<ZId<DataType>>,
 }
 
 impl ProcedureBuilder {
@@ -33,7 +33,7 @@ impl ProcedureBuilder {
         self.instructions.push(instruction)
     }
 
-    pub(crate) fn push_local(&mut self, name: &Identifier, ty: ZId<Struct>) -> ZId<Local> {
+    pub(crate) fn push_local(&mut self, name: &Identifier, ty: ZId<DataType>) -> ZId<Local> {
         self.locals.get_or_insert(name, || Local(ty))
     }
 }

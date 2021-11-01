@@ -16,7 +16,7 @@ pub enum Instruction {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Local(pub ZId<Struct>);  // field ix
+pub struct Local(pub ZId<DataType>);  // field ix
 
 #[derive(Clone, Debug)]
 pub enum ISAVariant {
